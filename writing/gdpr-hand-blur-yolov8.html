@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hide hands before you store the image: a GDPR blur step with YOLOv8 | Thomas O'Beirne</title><meta name="description" content="Tutorial: detect staff hands with a YOLOv8 model, decide whether to grade, blur, or reject, and log every decision.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#5b9dff; --accent-2:#7ee0c0;
+    --chip:#23303f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--txt); line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:920px; margin:0 auto; padding:0 22px}
+  section{padding:54px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:1.45rem; margin-bottom:22px; letter-spacing:.2px}
+  h2 .dot{color:var(--accent)}
+
+  /* hero */
+  header{
+    padding:84px 0 60px;
+    background:
+      radial-gradient(900px 380px at 15% -10%, rgba(91,157,255,.16), transparent 60%),
+      radial-gradient(700px 320px at 100% 0%, rgba(126,224,192,.12), transparent 55%);
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{color:var(--accent-2); font-weight:600; letter-spacing:.14em; text-transform:uppercase; font-size:.78rem}
+  header h1{font-size:clamp(2.1rem,6vw,3.2rem); line-height:1.1; margin:10px 0 8px}
+  .tag{font-size:1.2rem; color:var(--muted); font-weight:500}
+  .meta{margin-top:18px; color:var(--muted); font-size:.95rem}
+  .meta strong{color:var(--txt)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:.92rem;
+    border:1px solid var(--line); background:var(--panel); color:var(--txt);
+  }
+  .btn:hover{text-decoration:none; border-color:var(--accent); transform:translateY(-1px)}
+  .btn.primary{background:var(--accent); color:#06101f; border-color:var(--accent)}
+
+  .lead{font-size:1.05rem; color:#cdd7e1; max-width:760px}
+
+  /* projects */
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:26px 26px 22px; margin-bottom:22px;
+  }
+  .card h3{font-size:1.25rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .badge{font-size:.7rem; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:999px;
+    background:rgba(126,224,192,.14); color:var(--accent-2); border:1px solid rgba(126,224,192,.25)}
+  .badge.live{background:rgba(91,157,255,.14); color:var(--accent); border-color:rgba(91,157,255,.3)}
+  .card p.sub{color:var(--muted); margin:8px 0 16px}
+  .metrics{display:flex; gap:14px; flex-wrap:wrap; margin:0 0 16px}
+  .metric{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; min-width:120px}
+  .metric .n{font-size:1.25rem; font-weight:700; color:var(--accent)}
+  .metric .l{font-size:.76rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+  .card ul{list-style:none; margin:6px 0 16px}
+  .card li{padding-left:20px; position:relative; margin:7px 0; color:#cfd9e3}
+  .card li::before{content:"▸"; position:absolute; left:0; color:var(--accent)}
+  .links{display:flex; gap:14px; flex-wrap:wrap; font-size:.9rem; font-weight:600}
+
+  /* skills */
+  .skillgroup{margin-bottom:18px}
+  .skillgroup h4{font-size:.95rem; color:var(--txt); margin-bottom:9px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{background:var(--chip); border:1px solid var(--line); color:#cdd7e1;
+    padding:5px 11px; border-radius:8px; font-size:.83rem}
+
+  footer{padding:46px 0 70px; text-align:center; color:var(--muted)}
+  footer a{font-weight:600}
+  .contact{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-top:10px; font-size:.95rem}
+  .note{font-size:.8rem; color:#6b7782; margin-top:14px}
+</style>
+<style>.article{max-width:760px;margin:0 auto;padding:40px 20px}.article pre{overflow-x:auto;padding:14px;border-radius:8px;background:rgba(127,127,127,.12);font-size:.88em}.article code{font-size:.92em}.article table{border-collapse:collapse;margin:12px 0}.article td,.article th{border:1px solid rgba(127,127,127,.35);padding:6px 10px}.article h2{margin-top:32px}.back{display:inline-block;margin-bottom:18px}.article p,.article ul,.article ol{margin:0 0 14px}.article li{margin-bottom:6px}</style></head><body><main class="article"><a class="back" href="../index.html#writing">Back to portfolio</a>
+<h1>Hide hands before you store the image: a GDPR blur step with YOLOv8</h1>
+<p><em>Thomas O'Beirne, October 7, 2026</em></p>
+<p>A camera mounted above a pizza prep counter photographs more than pizza. Staff hands enter the frame, and they carry rings, tattoos, and skin that can identify a person. A quality-control system that stores thousands of these photos has to deal with that under the General Data Protection Regulation (GDPR), and it has to do it before the photos are kept.</p>
+<p>PizzaQuality AI, the pizza-grading system I built for a pizza franchise group, handles this with a second YOLOv8 model whose only job is to find hands. This tutorial walks you through the same step: train a hand model, decide per image, blur, and log. The code is adapted from <code>grade_pizza.py</code> in the <a href="https://github.com/MrInfinity12/PizzaQuality-AI">PizzaQuality AI repository on GitHub</a>. The repository ships demo data and no trained weights, so you bring your own.</p>
+<h2>The three outcomes</h2>
+<p>Every image ends in one of three states:</p>
+<table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>Condition</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ok</code></td>
+<td>No hand detected</td>
+<td>Store and grade the image.</td>
+</tr>
+<tr>
+<td><code>blur</code></td>
+<td>A hand is detected, but not over the pizza</td>
+<td>Blur the hand regions, then grade.</td>
+</tr>
+<tr>
+<td><code>reject</code></td>
+<td>A hand covers the pizza, or no pizza is found</td>
+<td>Don't grade the image. Keep it for manual review.</td>
+</tr>
+</tbody>
+</table>
+<p>A hand on the tray doesn't change the grade. A hand over the toppings hides what the grading model needs to see.</p>
+<h2>Before you begin</h2>
+<p>You need the following:</p>
+<ul>
+<li>Python 3.11 with <code>ultralytics</code>, <code>opencv-python</code>, and <code>numpy</code> installed.</li>
+<li>A segmentation model for your product. The code expects a class named <code>pizza_whole</code>. Rename it to match your own class.</li>
+<li>A few hundred overhead images from your camera in which hands appear.</li>
+</ul>
+<h2>Step 1: Train a single-class hand model</h2>
+<p>Label hands as polygons in an annotation tool such as CVAT, with one class named <code>hand</code>. My training set started from 200 captured images, each with at least one labeled hand. The repository's <code>training/augment_dataset.py</code> writes 12 Albumentations variants per image (brightness and contrast, hue and saturation, blur, noise, horizontal flips, rotation up to 15 degrees, scaling, cropping, and CLAHE), which turned 200 images into 2,600.</p>
+<p>Train a nano segmentation model from the pretrained checkpoint:</p>
+<pre><code class="language-bash">yolo segment train model=yolov8n-seg.pt data=hand_training_aug/dataset.yaml \
+    epochs=50 imgsz=640 batch=16
+</code></pre>
+<p>These are the training arguments stored in my <code>hand_best.pt</code> checkpoint. The privacy code uses only the boxes, so a detection model works too.</p>
+<p>My own run taught me two things to do differently:</p>
+<ul>
+<li><strong>Split by source image before you augment.</strong> My script shuffled all 2,600 files after augmentation and held out 20% for validation. As a result, 188 of the 200 source images had copies in both the training and the validation set. The checkpoint reports a box precision of 0.95 and a recall of 0.56, and because of that leak, even those numbers are optimistic.</li>
+<li><strong>Include images without hands.</strong> All 200 source images contained a hand, so the model never saw an empty counter or a bare tray as a negative example.</li>
+</ul>
+<p>The next step compensates for the low recall.</p>
+<h2>Step 2: Detect hands at a low threshold</h2>
+<p>The two possible errors don't cost the same. A missed hand stores personal data. A false detection blurs a few hundred pixels of tray. Set the confidence threshold low to trade precision for recall. Production runs the hand model at 0.1. The threshold started at 0.65, the value my verification script still uses.</p>
+<p>Create a file named <code>privacy.py</code> and add the setup and the hand detector:</p>
+<pre><code class="language-python">import csv
+import datetime
+from pathlib import Path
+
+import cv2
+import numpy as np
+from ultralytics import YOLO
+
+HAND_CONF = 0.1      # low on purpose: a missed hand is the expensive error
+PAD_PX = 20          # extra pixels around each hand box
+RIM_FRAC = 0.03      # dilate the pizza mask by 3% of the longer image side
+
+pizza_model = YOLO(&quot;best.pt&quot;)       # instance segmentation, has a pizza_whole class
+hand_model = YOLO(&quot;hand_best.pt&quot;)   # single class: hand
+
+
+def detect_hands(img_path):
+    result = hand_model(img_path, conf=HAND_CONF, verbose=False, device=&quot;cpu&quot;)[0].cpu()
+    if result.boxes is None:
+        return [], 0.0
+    boxes = [b.xyxy[0].numpy() for b in result.boxes]
+    confs = [float(b.conf[0]) for b in result.boxes]
+    return boxes, max(confs, default=0.0)
+</code></pre>
+<p>Both models run with <code>device="cpu"</code>, the same as on the production server, where inference runs on the CPU.</p>
+<h2>Step 3: Build a pizza mask with a safety margin</h2>
+<p>The decision depends on where the pizza is. Run the product model, take the <code>pizza_whole</code> polygon from <code>masks.xy</code>, and fill it. The polygon is already in original-image pixels, so you don't need to undo the model's letterboxing. The segmentation tends to stop short of the crust, so dilate the mask by 3% of the longer image side, with a floor of 8 pixels:</p>
+<pre><code class="language-python">def pizza_mask(img_path, h, w):
+    result = pizza_model(img_path, conf=0.5, verbose=False, device=&quot;cpu&quot;)[0].cpu()
+    if result.masks is None:
+        return None
+    for i, box in enumerate(result.boxes):
+        if result.names[int(box.cls[0])].lower() == &quot;pizza_whole&quot;:
+            polygon = result.masks.xy[i]
+            if len(polygon) &lt; 3:
+                return None
+            mask = np.zeros((h, w), dtype=np.uint8)
+            cv2.fillPoly(mask, [polygon.astype(np.int32)], 1)
+            margin = max(8, int(round(RIM_FRAC * max(h, w))))
+            kernel = cv2.getStructuringElement(
+                cv2.MORPH_ELLIPSE, (2 * margin + 1, 2 * margin + 1))
+            return cv2.dilate(mask, kernel)
+    return None
+</code></pre>
+<p>The confidence of 0.5 matches the per-class threshold the grader uses for <code>pizza_whole</code>. In the production grader, the pizza model has already run by the time the privacy check starts, so the check reuses that result. This standalone version runs the model itself, and only when a hand is present.</p>
+<h2>Step 4: Decide with an overlap-first rule</h2>
+<p>A hand blocks grading only if its box touches the dilated pizza mask:</p>
+<pre><code class="language-python">def decide(boxes, mask, h, w):
+    if not boxes:
+        return &quot;ok&quot;
+    if mask is None:
+        return &quot;reject&quot;  # hand present, no pizza to grade
+    for x1, y1, x2, y2 in boxes:
+        region = mask[max(0, int(y1)):min(h, int(y2)), max(0, int(x1)):min(w, int(x2))]
+        if region.size and np.any(region &gt; 0):
+            return &quot;reject&quot;  # the hand covers the pizza
+    return &quot;blur&quot;
+</code></pre>
+<p>The rule didn't start this simple. On April 16, 2026, I added a second condition: reject any image in which one hand box covers 18% or more of the frame. Three days later I removed it in favor of the overlap-first rule above, where a hand outside the pizza is blurred and graded however large it is. The blur already hides a large hand, so size on its own isn't a reason to throw away the grade.</p>
+<p>The <code>reject</code> result also covers a hand with no detectable pizza. In that case there's nothing to grade, and you don't want to keep a raw image of a hand.</p>
+<h2>Step 5: Blur with padding and overwrite the original</h2>
+<p>Pad each box by 20 pixels on every side, so the blurred region is 40 pixels wider and taller than the detection. The padding catches rings and wrist details that sit on the edge of the box. The blur uses a 99 by 99 Gaussian kernel:</p>
+<pre><code class="language-python">def blur_hands(img, boxes):
+    h, w = img.shape[:2]
+    for x1, y1, x2, y2 in map(lambda b: map(int, b), boxes):
+        x1, y1 = max(0, x1 - PAD_PX), max(0, y1 - PAD_PX)
+        x2, y2 = min(w, x2 + PAD_PX), min(h, y2 + PAD_PX)
+        if x2 &gt; x1 and y2 &gt; y1:
+            img[y1:y2, x1:x2] = cv2.GaussianBlur(img[y1:y2, x1:x2], (99, 99), 0)
+    return img
+</code></pre>
+<p>Write the result over the original file. A blurred copy saved next to an unblurred original protects nobody. If the image also lives in object storage, overwrite that copy too, so the raw upload doesn't survive.</p>
+<h2>Step 6: Log every decision</h2>
+<p>Write one CSV row per privacy event, and record the hand model's own confidence:</p>
+<pre><code class="language-python">def log_event(log_dir, decision, img_path, store_id, hand_conf):
+    log_path = Path(log_dir) / f&quot;privacy_{decision}.csv&quot;
+    new_file = not log_path.exists()
+    with open(log_path, &quot;a&quot;, newline=&quot;&quot;) as f:
+        writer = csv.DictWriter(
+            f, fieldnames=[&quot;timestamp&quot;, &quot;filename&quot;, &quot;store_id&quot;, &quot;hand_confidence&quot;])
+        if new_file:
+            writer.writeheader()
+        writer.writerow({
+            &quot;timestamp&quot;: datetime.datetime.now().isoformat(timespec=&quot;seconds&quot;),
+            &quot;filename&quot;: Path(img_path).name,
+            &quot;store_id&quot;: store_id,
+            &quot;hand_confidence&quot;: round(hand_conf, 3),
+        })
+
+
+def protect(img_path, store_id, log_dir=&quot;.&quot;):
+    img = cv2.imread(img_path)
+    if img is None:
+        return &quot;reject&quot;
+    h, w = img.shape[:2]
+    boxes, hand_conf = detect_hands(img_path)
+    decision = decide(boxes, pizza_mask(img_path, h, w) if boxes else None, h, w)
+    if boxes:
+        cv2.imwrite(img_path, blur_hands(img, boxes))  # overwrite the original
+        log_event(log_dir, decision, img_path, store_id, hand_conf)
+    return decision
+
+
+if __name__ == &quot;__main__&quot;:
+    import sys
+    for path in sys.argv[1:]:
+        print(path, protect(path, store_id=&quot;demo&quot;))
+</code></pre>
+<p>Two choices in this version matter:</p>
+<ul>
+<li><strong>It blurs rejected images too.</strong> The decision controls grading only. Every detected hand gets blurred, so an image held back for manual review doesn't expose anyone either.</li>
+<li><strong>It logs the hand model's own confidence.</strong> Log the number that tells you how sure the hand model was, not the threshold or another model's score. That's the number you want when you audit a borderline case later.</li>
+</ul>
+<h2>Step 7: Check the decisions by eye</h2>
+<p>Run the script on a folder of images that weren't in the training set:</p>
+<pre><code class="language-bash">python privacy.py test_images/*.jpg
+</code></pre>
+<p>For a visual check, the repository's <code>tools/verify_hand_model.py</code> applies the same decision logic and writes annotated copies: green for <code>ok</code>, yellow for <code>blur</code>, red for <code>reject</code>, the outline of the dilated pizza mask, and a banner with the decision, hand count, and highest confidence. I ran it on a held-out set of 23 images that weren't used for training. The annotated copies show each decision at a glance, which makes wrong calls easy to spot.</p>
+<h2>Where this design falls short</h2>
+<p>This step protects the images that the grader and the dashboard keep, but it isn't the strictest possible design:</p>
+<ul>
+<li><strong>Blur on the device when you can.</strong> If the camera device uploads raw images and a server blurs them later, the raw images sit in storage until the blur runs. Running the hand model on the edge device before upload means no unblurred hand leaves the site. A small detection model is light enough for a Raspberry Pi 5.</li>
+<li><strong>Boxes miss forearms.</strong> A box drawn around a hand can cut through a wrist or a tattoo on the forearm. Expanding the model to forearms is on the project roadmap.</li>
+<li><strong>Recall is the weak point.</strong> A low threshold compensates for a model that misses hands, but it doesn't fix it. More varied training data, including negatives and a clean validation split, is the real fix.</li>
+</ul>
+<h2>Summary</h2>
+<p>Train a single-class hand model on data split by source image, run it at a low threshold, reject only when a hand covers the product, blur every detected hand with padding over the original file, and log each decision with the hand model's own confidence.</p>
+</main></body></html>

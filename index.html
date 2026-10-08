@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Thomas O'Beirne — ML / Computer Vision / LLM Engineer</title>
-<meta name="description" content="Thomas O'Beirne — machine learning and computer-vision engineer. Ships production AI end-to-end: YOLOv8 vision systems and multimodal LLM pipelines. Groningen, NL · EU citizen · remote-ready.">
+<title>Thomas O'Beirne: ML, computer vision, and LLM engineer</title>
+<meta name="description" content="Thomas O'Beirne, machine learning and computer-vision engineer. Ships production AI end-to-end: YOLOv8 vision systems and multimodal LLM pipelines. Groningen, NL · EU citizen · remote-ready.">
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
@@ -86,9 +86,9 @@
   <div class="wrap">
     <div class="eyebrow">ML · Computer Vision · LLMs</div>
     <h1>Thomas O'Beirne</h1>
-    <div class="tag">I build and ship production AI systems — end to end.</div>
+    <div class="tag">I build and ship production AI systems, end to end.</div>
     <div class="meta">
-      📍 Groningen, Netherlands &nbsp;·&nbsp; 🇪🇺 Irish citizen — <strong>no visa/permit required</strong>
+      📍 Groningen, Netherlands &nbsp;·&nbsp; 🇪🇺 Irish citizen, <strong>no visa/permit required</strong>
       &nbsp;·&nbsp; 🏠 Open to fully remote &nbsp;·&nbsp; <strong>Available now</strong>
     </div>
     <div class="cta">
@@ -111,6 +111,17 @@
   </div>
 </section>
 
+<section id="writing">
+  <div class="wrap">
+    <h2><span class="dot">#</span> Writing</h2>
+      <ul>
+        <li><a href="writing/gdpr-hand-blur-yolov8.html"><strong>Hide hands before you store the image: a GDPR blur step with YOLOv8</strong></a><br><span class="sub">Tutorial: detect staff hands with a YOLOv8 model, decide whether to grade, blur, or reject, and log every decision.</span></li>
+        <li><a href="writing/measuring-multimodal-ocr.html"><strong>Measuring a multimodal OCR pipeline: F1 at IoU, CER, and cost per page</strong></a><br><span class="sub">Tutorial: score text extraction from Gemini and Qwen2.5-VL against ground truth, and track what each run costs.</span></li>
+        <li><a href="writing/one-model-many-stores.html"><strong>One model, many stores: what a CPU-only computer vision system taught me</strong></a><br><span class="sub">What running one YOLOv8 model across several pizza stores taught me about memory, device identity, calibration, and retraining.</span></li>
+      </ul>
+  </div>
+</section>
+
 <section id="projects">
   <div class="wrap">
     <h2><span class="dot">#</span> Projects</h2>
@@ -118,9 +129,9 @@
     <!-- PizzaQuality AI -->
     <div class="card">
       <h3>PizzaQuality AI <span class="badge live">In production</span></h3>
-      <p class="sub">Computer-vision quality control deployed across a pizza franchise — built solo, end to end.</p>
-      <img src="assets/pizzaquality-overview.png" alt="PizzaQuality dashboard — weekly overview with total pizzas, average score, critical rate and per-day cards" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:12px">
-      <img src="assets/pizzaquality-stores.png" alt="PizzaQuality dashboard — multi-store selection view" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:6px">
+      <p class="sub">Computer-vision quality control deployed across a pizza franchise, built solo, end to end.</p>
+      <img src="assets/pizzaquality-overview.png" alt="PizzaQuality dashboard: weekly overview with total pizzas, average score, critical rate and per-day cards" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:12px">
+      <img src="assets/pizzaquality-stores.png" alt="PizzaQuality dashboard: multi-store selection view" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:6px">
       <p style="font-size:.78rem;color:#6b7782;margin:0 0 16px">Dashboard shown with sample data.</p>
       <div class="metrics">
         <div class="metric"><div class="n">~1.5s</div><div class="l">/ image on CPU</div></div>
@@ -129,8 +140,8 @@
         <div class="metric"><div class="n">multi-store</div><div class="l">live deployment</div></div>
       </div>
       <ul>
-        <li>Fine-tuned YOLOv8 instance segmentation — detects toppings, crust structure, sauce regions and defects from overhead camera photos; grades each pizza against recipe specs.</li>
-        <li>GDPR-compliant privacy pipeline: a second model detects hands/forearms and blurs identifying features before any image is stored.</li>
+        <li>Fine-tuned YOLOv8 instance segmentation that detects toppings, crust structure, sauce regions and defects from overhead camera photos; grades each pizza against recipe specs.</li>
+        <li>GDPR-compliant privacy pipeline: a second model detects hands and blurs identifying features before images are kept or shown.</li>
         <li>Edge-to-cloud: Raspberry Pi 5 capture → Wasabi S3 → VPS inference → role-based Streamlit dashboard via Cloudflare Tunnel (zero open ports).</li>
       </ul>
       <div class="links">
@@ -142,18 +153,17 @@
     <div class="card">
       <h3>Multimodal LLM OCR &amp; Translation Pipeline <span class="badge">Gemini · LLM</span></h3>
       <p class="sub">Production-ready document pipeline: images → structured, translated, typeset output.</p>
-      <img src="assets/manhwaocr-gui.png" alt="ManhwaOCR pipeline GUI — extraction, quality, pipeline, cleaner, script, compare and benchmark tabs" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:12px">
-      <img src="assets/manhwaocr-editor.png" alt="ManhwaOCR typesetting editor — page browser, canvas, and entry inspector" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:16px">
+      <img src="assets/manhwaocr-gui.png" alt="ManhwaOCR pipeline GUI: extraction, quality, pipeline, cleaner, script, compare and benchmark tabs" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:12px">
+      <img src="assets/manhwaocr-editor.png" alt="ManhwaOCR typesetting editor: page browser, canvas, and entry inspector" style="width:100%;border-radius:10px;border:1px solid var(--line);margin-bottom:16px">
       <div class="metrics">
         <div class="metric"><div class="n">F1 = 0.615</div><div class="l">IoU@0.50, Manga109</div></div>
-        <div class="metric"><div class="n">~€0.02</div><div class="l">per document</div></div>
         <div class="metric"><div class="n">5</div><div class="l">text types extracted</div></div>
         <div class="metric"><div class="n">7-tab</div><div class="l">Streamlit GUI</div></div>
       </div>
       <ul>
         <li>Gemini Flash multimodal extraction with per-entry bounding-box localisation across five text types, plus an LLM proofreading / QC stage.</li>
         <li>Neural image inpainting (LaMa + OpenCV) for background reconstruction, and automated layout/typesetting.</li>
-        <li>Benchmarked Gemini vs. Qwen2.5-VL (7B/72B via OpenRouter) with automated WER/CER/BLEU metrics and a 429-quota fallback.</li>
+        <li>Benchmarked Gemini vs. Qwen2.5-VL (7B/72B via OpenRouter) with automated WER/CER/BLEU metrics.</li>
       </ul>
       <div class="links">
         <a href="https://github.com/MrInfinity12/ManhwaOCR">View code →</a>
@@ -199,7 +209,7 @@
     <div class="skillgroup">
       <h4>Languages</h4>
       <div class="chips">
-        <span class="chip">English — native</span><span class="chip">Dutch — conversational</span>
+        <span class="chip">English, native</span><span class="chip">Dutch, conversational</span>
       </div>
     </div>
   </div>
@@ -207,7 +217,7 @@
 
 <footer>
   <div class="wrap">
-    <div>Let's talk — I'm available immediately, remote or hybrid.</div>
+    <div>Let's talk. I'm available for freelance, part-time, or full-time work, remote or hybrid.</div>
     <div class="contact">
       <a href="mailto:thomasobeirne2002@gmail.com">thomasobeirne2002@gmail.com</a>
       <span>+31 6 29 182 114</span>

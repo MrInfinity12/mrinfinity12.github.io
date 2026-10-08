@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One model, many stores: what a CPU-only computer vision system taught me | Thomas O'Beirne</title><meta name="description" content="What running one YOLOv8 model across several pizza stores taught me about memory, device identity, calibration, and retraining.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#5b9dff; --accent-2:#7ee0c0;
+    --chip:#23303f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--txt); line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:920px; margin:0 auto; padding:0 22px}
+  section{padding:54px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:1.45rem; margin-bottom:22px; letter-spacing:.2px}
+  h2 .dot{color:var(--accent)}
+
+  /* hero */
+  header{
+    padding:84px 0 60px;
+    background:
+      radial-gradient(900px 380px at 15% -10%, rgba(91,157,255,.16), transparent 60%),
+      radial-gradient(700px 320px at 100% 0%, rgba(126,224,192,.12), transparent 55%);
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{color:var(--accent-2); font-weight:600; letter-spacing:.14em; text-transform:uppercase; font-size:.78rem}
+  header h1{font-size:clamp(2.1rem,6vw,3.2rem); line-height:1.1; margin:10px 0 8px}
+  .tag{font-size:1.2rem; color:var(--muted); font-weight:500}
+  .meta{margin-top:18px; color:var(--muted); font-size:.95rem}
+  .meta strong{color:var(--txt)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:.92rem;
+    border:1px solid var(--line); background:var(--panel); color:var(--txt);
+  }
+  .btn:hover{text-decoration:none; border-color:var(--accent); transform:translateY(-1px)}
+  .btn.primary{background:var(--accent); color:#06101f; border-color:var(--accent)}
+
+  .lead{font-size:1.05rem; color:#cdd7e1; max-width:760px}
+
+  /* projects */
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:26px 26px 22px; margin-bottom:22px;
+  }
+  .card h3{font-size:1.25rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .badge{font-size:.7rem; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:999px;
+    background:rgba(126,224,192,.14); color:var(--accent-2); border:1px solid rgba(126,224,192,.25)}
+  .badge.live{background:rgba(91,157,255,.14); color:var(--accent); border-color:rgba(91,157,255,.3)}
+  .card p.sub{color:var(--muted); margin:8px 0 16px}
+  .metrics{display:flex; gap:14px; flex-wrap:wrap; margin:0 0 16px}
+  .metric{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; min-width:120px}
+  .metric .n{font-size:1.25rem; font-weight:700; color:var(--accent)}
+  .metric .l{font-size:.76rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+  .card ul{list-style:none; margin:6px 0 16px}
+  .card li{padding-left:20px; position:relative; margin:7px 0; color:#cfd9e3}
+  .card li::before{content:"▸"; position:absolute; left:0; color:var(--accent)}
+  .links{display:flex; gap:14px; flex-wrap:wrap; font-size:.9rem; font-weight:600}
+
+  /* skills */
+  .skillgroup{margin-bottom:18px}
+  .skillgroup h4{font-size:.95rem; color:var(--txt); margin-bottom:9px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{background:var(--chip); border:1px solid var(--line); color:#cdd7e1;
+    padding:5px 11px; border-radius:8px; font-size:.83rem}
+
+  footer{padding:46px 0 70px; text-align:center; color:var(--muted)}
+  footer a{font-weight:600}
+  .contact{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-top:10px; font-size:.95rem}
+  .note{font-size:.8rem; color:#6b7782; margin-top:14px}
+</style>
+<style>.article{max-width:760px;margin:0 auto;padding:40px 20px}.article pre{overflow-x:auto;padding:14px;border-radius:8px;background:rgba(127,127,127,.12);font-size:.88em}.article code{font-size:.92em}.article table{border-collapse:collapse;margin:12px 0}.article td,.article th{border:1px solid rgba(127,127,127,.35);padding:6px 10px}.article h2{margin-top:32px}.back{display:inline-block;margin-bottom:18px}.article p,.article ul,.article ol{margin:0 0 14px}.article li{margin-bottom:6px}</style></head><body><main class="article"><a class="back" href="../index.html#writing">Back to portfolio</a>
+<h1>One model, many stores: what a CPU-only computer vision system taught me</h1>
+<p><em>Thomas O'Beirne, October 7, 2026</em></p>
+<p>For a pizza franchise group, I built PizzaQuality AI. A camera above the prep area in each store photographs every pizza, and a YOLOv8 model grades it against the recipe: toppings, crust, bubbles, and shape, scored out of 100. One model serves every store, and inference never needs a GPU. A Raspberry Pi in the store runs a small detector, and a rented server does the grading on its CPU.</p>
+<p>This post covers what that setup taught me, and what I'd change if I built it again.</p>
+<h2>The shape of the system</h2>
+<p>The pipeline has three stages:</p>
+<ol>
+<li><strong>Capture.</strong> A Raspberry Pi 5 in each store watches the prep area through an overhead camera at 4056 by 3040 pixels. A stock YOLOv8 nano model, filtered to the COCO <code>pizza</code> class, looks for a pizza. When one holds still for three consecutive frames (the center moves less than 50 pixels, the box area changes less than 30%, and the pizza fills at least 20% of the frame), the Pi crops it with 15% padding and saves a JPEG.</li>
+<li><strong>Transport.</strong> A background thread uploads each crop to an S3-compatible bucket under <code>&lt;store&gt;/&lt;date&gt;/&lt;filename&gt;</code> and deletes the local copy after a successful upload.</li>
+<li><strong>Grading.</strong> A Hetzner server pulls from the bucket every 15 minutes and runs two YOLOv8 nano segmentation models on its CPU: a 21-class pizza model and a hand model that blurs staff hands for privacy. Grading takes about 1.5 seconds per image. Results appear in a Streamlit dashboard behind a Cloudflare Tunnel, where store managers see their own store and the owner sees all of them.</li>
+</ol>
+<p>Each stage is ordinary on its own. The lessons came from where they meet.</p>
+<h2>CPU was fast enough; memory wasn't</h2>
+<p>Speed wasn't the constraint. The Pi waits at least 6 seconds between captures, so 1.5 seconds of grading per image leaves plenty of headroom.</p>
+<p>Memory was the constraint. Ultralytics keeps segmentation masks at the original image resolution, which came to about 30 MB per high-resolution image. A batch of 37 images peaked above 3.5 GB on a server with 4 GB of RAM, and the grading process was killed for running out of memory. The fix was to drop each result as soon as I had extracted the numbers, and to collect garbage between images:</p>
+<pre><code class="language-python">import gc
+from pathlib import Path
+
+from ultralytics import YOLO
+
+model = YOLO(&quot;best.pt&quot;)
+for img_path in sorted(Path(&quot;images&quot;).glob(&quot;*.jpg&quot;)):
+    result = model(str(img_path), device=&quot;cpu&quot;, verbose=False)[0]
+    print(img_path.name, len(result.boxes))
+    result = None  # full-resolution masks stay in memory until released
+    gc.collect()
+</code></pre>
+<p>On a CPU-only box, measure memory per image as early as you measure time per image. The time budget was generous. The memory budget wasn't.</p>
+<h2>Give every device an identity before its first photo</h2>
+<p>The first capture code named files <code>pizza_&lt;timestamp&gt;_conf-&lt;confidence&gt;.jpg</code>. With one Pi, that was fine. With more than one Pi uploading to the same bucket, there was no way to tell which store a photo came from.</p>
+<p>The fix was a <code>store_id</code> in each Pi's configuration, prefixed to every filename. The uploader splits the filename to build the object key, so photos land in a folder per store and per day. My retrospective notes from that sprint say it plainly: retrofitting identity later is painful. Any fleet of cameras needs an ID per device from the first boot, and that ID belongs in filenames, hostnames, and logs.</p>
+<h2>One model, per-store numbers</h2>
+<p>Grading needs physical units. The rim should be 13 to 25 millimeters wide, and ingredient weight is estimated from mask area. Each store's camera hangs at a different height and angle, so a pixel means something different in every store.</p>
+<p>I kept one model and moved the per-store differences into configuration. The recipe file stores <code>pixels_per_cm</code> and <code>pixels_per_gram</code> for each store, and the grader falls back to defaults (40 pixels per centimeter and 450 pixels per gram) for any store without its own values:</p>
+<pre><code class="language-python">def get_store_calibration(db, store_id=None):
+    cal = db[&quot;calibration&quot;]
+    default = cal[&quot;default&quot;]
+    store_cal = cal.get(&quot;stores&quot;, {}).get(store_id, {})
+    return {
+        &quot;pixels_per_gram&quot;: store_cal.get(&quot;pixels_per_gram&quot;, default[&quot;pixels_per_gram&quot;]),
+        &quot;pixels_per_cm&quot;: store_cal.get(&quot;pixels_per_cm&quot;, default[&quot;pixels_per_cm&quot;]),
+    }
+</code></pre>
+<p>A helper script, <code>calibrate_store.py</code>, computes the values from a photo of a pizza with a known diameter or a weighed portion of one topping. Some ingredients also get their own conversion, because a pixel of thin tomato slice weighs far less than a pixel of chicken.</p>
+<p>Here's the honest part: the tooling existed, but I never made calibration a required step. A store without its own values falls back to one default conversion, which can't be right for cameras at different heights.</p>
+<p>If I built it again, calibration would be part of installation. The Pi setup wizard already asks for the store identity. It should also ask for a calibration photo, and the grader should refuse to report grams for an uncalibrated store instead of falling back without a warning.</p>
+<h2>One threshold doesn't fit every class</h2>
+<p>When the model learned new toppings, their detections on real camera images came in at confidences of 0.60 to 0.68. The global threshold was 0.75, so those detections were filtered out without any warning. With only the surviving toppings to go on, the recipe matcher graded multi-topping pizzas as single-topping recipes.</p>
+<p>The fix was a confidence threshold per class, stored in the same configuration file. The values in my configuration range from 0.3 for air bubbles to 0.75, the default that pepperoni keeps because it's the best-trained class. A model whose classes saw very different amounts of training data needs per-class thresholds from the start.</p>
+<h2>Corrections are training data only if you keep them that way</h2>
+<p>The dashboard lets a reviewer flag a pizza and correct its recipe, size, and ingredient counts. Every correction is appended to a per-store <code>pizza_corrections.json</code> with the user, a timestamp, the old and new recipe, the old and new score, and the change per ingredient. Reviewers can also attach training flags such as bad shape or excess bubbling.</p>
+<p>The retraining loop around that worked like this:</p>
+<ol>
+<li>Pre-label new images with the current model, and correct the labels in CVAT.</li>
+<li>Write 12 augmented variants per image, and train on a Colab GPU.</li>
+<li>Run <code>compare_models.py</code>, which grades the same test images with the old and the new model and exits with an error when the mean score drops by more than 5 points.</li>
+<li>Run <code>validate_grading.py</code>, which runs 125 checks against a saved baseline that records the model hash.</li>
+</ol>
+<p>The gap sits between the corrections log and step 1. Corrections never turned into labels automatically. A diff that says pepperoni went from 12 to 14 doesn't say where the two missed slices are, so every round of retraining went back through CVAT by hand. Next time, a correction would queue the image for annotation with the model's pre-labels attached, and the corrections log would produce an accuracy figure per store, so I'd know which camera needed attention first.</p>
+<h2>Small operations mistakes</h2>
+<p>Several problems came from a few lines of shell:</p>
+<ul>
+<li><strong>Pulling the whole bucket.</strong> The server's cron job pointed <code>rclone copy</code> at the entire bucket every 15 minutes, including folders the grader never needed. Scoping the pull to new date folders is the better default.</li>
+<li><strong>A guard that never fires.</strong> The setup script checks for an existing cron line by searching for <code>rclone sync wasabi</code>, but the line it installs says <code>rclone copy wasabi</code>. The check never matches, so every rerun of the script adds another copy of the job.</li>
+<li><strong>Sync versus copy.</strong> An earlier version used <code>rclone sync</code>, which deletes local files that aren't in the bucket. That included the JSON files the dashboard writes next to the images.</li>
+</ul>
+<h2>What I'd do differently</h2>
+<p>Here's the short list:</p>
+<ol>
+<li>Calibrate every store during installation, and refuse to report physical units without it.</li>
+<li>Profile memory per image on the target hardware from the first prototype.</li>
+<li>Put the device identity in every filename from the first capture.</li>
+<li>Store corrections in a form that converts into labels.</li>
+<li>Split training data by source image before augmenting, and keep a fixed held-out test set.</li>
+<li>Run the privacy model on the edge device.</li>
+<li>Sync incrementally, and test that setup scripts are safe to rerun.</li>
+</ol>
+<h2>The part that worked</h2>
+<p>Using one model for every store kept deployment simple. Store-specific values were designed to live in configuration rather than in separate weights, and grading runs centrally, so a retrained model reached every store with one file copy to the server. The problems came from the steps I treated as setup chores. In a system like this, those steps are part of the product.</p>
+</main></body></html>

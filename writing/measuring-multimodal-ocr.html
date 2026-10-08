@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Measuring a multimodal OCR pipeline: F1 at IoU, CER, and cost per page | Thomas O'Beirne</title><meta name="description" content="Tutorial: score text extraction from Gemini and Qwen2.5-VL against ground truth, and track what each run costs.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c232d; --line:#2a323d;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#5b9dff; --accent-2:#7ee0c0;
+    --chip:#23303f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--txt); line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:920px; margin:0 auto; padding:0 22px}
+  section{padding:54px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:1.45rem; margin-bottom:22px; letter-spacing:.2px}
+  h2 .dot{color:var(--accent)}
+
+  /* hero */
+  header{
+    padding:84px 0 60px;
+    background:
+      radial-gradient(900px 380px at 15% -10%, rgba(91,157,255,.16), transparent 60%),
+      radial-gradient(700px 320px at 100% 0%, rgba(126,224,192,.12), transparent 55%);
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{color:var(--accent-2); font-weight:600; letter-spacing:.14em; text-transform:uppercase; font-size:.78rem}
+  header h1{font-size:clamp(2.1rem,6vw,3.2rem); line-height:1.1; margin:10px 0 8px}
+  .tag{font-size:1.2rem; color:var(--muted); font-weight:500}
+  .meta{margin-top:18px; color:var(--muted); font-size:.95rem}
+  .meta strong{color:var(--txt)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:.92rem;
+    border:1px solid var(--line); background:var(--panel); color:var(--txt);
+  }
+  .btn:hover{text-decoration:none; border-color:var(--accent); transform:translateY(-1px)}
+  .btn.primary{background:var(--accent); color:#06101f; border-color:var(--accent)}
+
+  .lead{font-size:1.05rem; color:#cdd7e1; max-width:760px}
+
+  /* projects */
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:26px 26px 22px; margin-bottom:22px;
+  }
+  .card h3{font-size:1.25rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .badge{font-size:.7rem; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:999px;
+    background:rgba(126,224,192,.14); color:var(--accent-2); border:1px solid rgba(126,224,192,.25)}
+  .badge.live{background:rgba(91,157,255,.14); color:var(--accent); border-color:rgba(91,157,255,.3)}
+  .card p.sub{color:var(--muted); margin:8px 0 16px}
+  .metrics{display:flex; gap:14px; flex-wrap:wrap; margin:0 0 16px}
+  .metric{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; min-width:120px}
+  .metric .n{font-size:1.25rem; font-weight:700; color:var(--accent)}
+  .metric .l{font-size:.76rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+  .card ul{list-style:none; margin:6px 0 16px}
+  .card li{padding-left:20px; position:relative; margin:7px 0; color:#cfd9e3}
+  .card li::before{content:"▸"; position:absolute; left:0; color:var(--accent)}
+  .links{display:flex; gap:14px; flex-wrap:wrap; font-size:.9rem; font-weight:600}
+
+  /* skills */
+  .skillgroup{margin-bottom:18px}
+  .skillgroup h4{font-size:.95rem; color:var(--txt); margin-bottom:9px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{background:var(--chip); border:1px solid var(--line); color:#cdd7e1;
+    padding:5px 11px; border-radius:8px; font-size:.83rem}
+
+  footer{padding:46px 0 70px; text-align:center; color:var(--muted)}
+  footer a{font-weight:600}
+  .contact{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-top:10px; font-size:.95rem}
+  .note{font-size:.8rem; color:#6b7782; margin-top:14px}
+</style>
+<style>.article{max-width:760px;margin:0 auto;padding:40px 20px}.article pre{overflow-x:auto;padding:14px;border-radius:8px;background:rgba(127,127,127,.12);font-size:.88em}.article code{font-size:.92em}.article table{border-collapse:collapse;margin:12px 0}.article td,.article th{border:1px solid rgba(127,127,127,.35);padding:6px 10px}.article h2{margin-top:32px}.back{display:inline-block;margin-bottom:18px}.article p,.article ul,.article ol{margin:0 0 14px}.article li{margin-bottom:6px}</style></head><body><main class="article"><a class="back" href="../index.html#writing">Back to portfolio</a>
+<h1>Measuring a multimodal OCR pipeline: F1 at IoU, CER, and cost per page</h1>
+<p><em>Thomas O'Beirne, October 7, 2026</em></p>
+<p>ManhwaOCR is my pipeline for translating Korean webcomics. It sends each page image to a multimodal model, and the model answers with a JSON list: every piece of text on the page, its type (dialogue, narration, sound effect, sign, or credit), an English translation, and a bounding box. Cleaning and typesetting downstream depend on that box being in the right place.</p>
+<p>One response can fail in several ways. This tutorial measures each one separately, using the benchmark harness from the <a href="https://github.com/MrInfinity12/ManhwaOCR">ManhwaOCR repository</a>:</p>
+<ul>
+<li><strong>Localization:</strong> did the model put a box where the text is? Measure precision, recall, and F1 at an intersection over union (IoU) threshold.</li>
+<li><strong>Reading:</strong> did it read the text correctly? Measure character error rate (CER) and word error rate (WER).</li>
+<li><strong>Translation:</strong> how close is the English to a reference? Measure BLEU.</li>
+<li><strong>Cost:</strong> what did each page cost? Count tokens per call.</li>
+</ul>
+<p>I used it to compare seven Gemini models with Qwen2.5-VL 7B and 72B, all called through OpenRouter's OpenAI-compatible API.</p>
+<h2>Before you begin</h2>
+<p>You need the following:</p>
+<ul>
+<li>Python 3.11 with <code>jiwer</code> for WER and CER, and <code>sacrebleu</code> for BLEU.</li>
+<li>Ground truth with boxes. I used Manga109, an academic manga dataset that you can request through a research-use form. Its annotations mark speech-bubble text with <code>xmin</code>, <code>ymin</code>, <code>xmax</code>, and <code>ymax</code> attributes.</li>
+<li>An OpenRouter API key if you call hosted models.</li>
+</ul>
+<h2>Step 1: Put every box on the same scale</h2>
+<p>Before you score anything, convert every predicted box into pixels on the original page. A wrong scale puts every box in the wrong place, and the score drops to zero without an error. The prompt asks for coordinates between 0 and 1. In practice:</p>
+<ul>
+<li>Gemini models answered on a 0 to 1000 integer grid, whatever the prompt said.</li>
+<li>Qwen models answered in pixels of the image they received. The pipeline sends pages resized to at most 1,600 pixels on the longer side, so those pixels belong to the resized image.</li>
+</ul>
+<p>The repository's parser also handles missing widths and truncated JSON. This shorter version keeps the scaling logic:</p>
+<pre><code class="language-python">import re
+from dataclasses import dataclass
+
+
+@dataclass
+class Box:
+    x: int
+    y: int
+    w: int
+    h: int
+
+
+def to_pixels(b, img_w, img_h, model_w, model_h, gemini=False):
+    &quot;&quot;&quot;Map a model bbox dict {x, y, w, h} onto the original page in pixels.&quot;&quot;&quot;
+    x, y, w, h = (float(b.get(k, 0)) for k in (&quot;x&quot;, &quot;y&quot;, &quot;w&quot;, &quot;h&quot;))
+    if gemini:  # Gemini answers on a 0-1000 grid, whatever the prompt says
+        x, y, w, h = x / 1000, y / 1000, w / 1000, h / 1000
+    elif max(x, y, w, h) &gt; 1.0:  # pixels in the resized image the model saw
+        x, y, w, h = x / model_w, y / model_h, w / model_w, h / model_h
+    return Box(int(x * img_w), int(y * img_h), int(w * img_w), int(h * img_h))
+</code></pre>
+<h2>Step 2: Match predictions to ground truth with IoU</h2>
+<p>IoU divides the overlap of two boxes by the area of their union. A prediction counts as a true positive when its best match among the unmatched ground-truth boxes reaches the threshold. Each ground-truth box can match only once:</p>
+<pre><code class="language-python">def iou(a, b):
+    inter_x = max(0, min(a.x + a.w, b.x + b.w) - max(a.x, b.x))
+    inter_y = max(0, min(a.y + a.h, b.y + b.h) - max(a.y, b.y))
+    inter = inter_x * inter_y
+    union = a.w * a.h + b.w * b.h - inter
+    return inter / union if union else 0.0
+
+
+def score_page(gt_boxes, pred_boxes, iou_thresh=0.5):
+    matched, tp = set(), 0
+    for pred in pred_boxes:
+        best_iou, best_idx = 0.0, -1
+        for i, gt in enumerate(gt_boxes):
+            if i in matched:
+                continue
+            score = iou(gt, pred)
+            if score &gt; best_iou:
+                best_iou, best_idx = score, i
+        if best_iou &gt;= iou_thresh and best_idx &gt;= 0:
+            tp += 1
+            matched.add(best_idx)
+    return tp, len(pred_boxes) - tp, len(gt_boxes) - tp
+</code></pre>
+<p>The function returns true positives, false positives, and false negatives. Score every page twice: at an IoU of 0.5, the default, and at 0.25. The looser threshold suits irregular speech-bubble shapes.</p>
+<h2>Step 3: Score only what the ground truth annotates</h2>
+<p>Manga109 annotates speech-bubble text only, so a correctly found sound effect would count as a false positive. Two filters fix that:</p>
+<ul>
+<li><strong>Filter predictions by type.</strong> Score only entries typed <code>DIALOGUE</code> or <code>NARRATION</code>.</li>
+<li><strong>Skip pages with no annotations.</strong> Covers and title pages have zero ground-truth boxes, so every prediction on them would count against the model.</li>
+</ul>
+<p>Sum the counts across pages before you compute rates:</p>
+<pre><code class="language-python">def prf(tp, fp, fn):
+    p = tp / (tp + fp) if tp + fp else 0.0
+    r = tp / (tp + fn) if tp + fn else 0.0
+    return p, r, (2 * p * r / (p + r) if p + r else 0.0)
+
+# total_tp, total_fp, total_fn are sums over all scored pages
+precision, recall, f1 = prf(total_tp, total_fp, total_fn)
+</code></pre>
+<p>Summing first keeps a page with two bubbles from counting as much as a page with twenty.</p>
+<h2>Step 4: Read the results with their caveats</h2>
+<p>My comparison run on May 22, 2026, covered 3 books and 5 pages per book. Five pages had no annotations and were skipped, which left 10 scored pages and 132 ground-truth boxes per model:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Precision at 0.5</th>
+<th>Recall at 0.5</th>
+<th>F1 at 0.5</th>
+<th>F1 at 0.25</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gemini-3.5-flash</code></td>
+<td>0.661</td>
+<td>0.576</td>
+<td>0.615</td>
+<td>0.874</td>
+</tr>
+<tr>
+<td><code>gemini-3-flash-preview</code></td>
+<td>0.118</td>
+<td>0.144</td>
+<td>0.130</td>
+<td>0.198</td>
+</tr>
+<tr>
+<td><code>gemini-3.1-flash-lite</code></td>
+<td>0.009</td>
+<td>0.008</td>
+<td>0.008</td>
+<td>0.073</td>
+</tr>
+<tr>
+<td><code>qwen2.5-vl-72b</code></td>
+<td>0.000</td>
+<td>0.000</td>
+<td>0.000</td>
+<td>0.080</td>
+</tr>
+<tr>
+<td><code>qwen2.5-vl-7b</code></td>
+<td>0.000</td>
+<td>0.000</td>
+<td>0.000</td>
+<td>0.000</td>
+</tr>
+</tbody>
+</table>
+<p>The other four Gemini models scored an F1 between 0.000 and 0.009 at 0.5. Qwen2.5-VL 7B returned no boxes at all. The 72B model returned 93 boxes, and none of them reached an IoU of 0.5 with a ground-truth box.</p>
+<p>Two caveats apply:</p>
+<ul>
+<li><strong>The benchmark measured my parser as much as the models.</strong> The run predates May 28, 2026, when I changed the parser to always read Gemini boxes on the 0 to 1000 grid. I haven't rerun the comparison since, so the near-zero Gemini scores mix model error with my scaling error.</li>
+<li><strong>Manga109 is Japanese manga, not Korean webcomics.</strong> Reading order and layout differ, so the numbers don't transfer directly.</li>
+</ul>
+<p>The run still settled one thing: <code>gemini-3.5-flash</code> was the only model with boxes good enough for typesetting.</p>
+<h2>Step 5: Measure reading accuracy with CER and WER</h2>
+<p>CER and WER compare extracted text with a reference transcript. Normalize both sides first, so that capitalization and punctuation don't count as errors:</p>
+<pre><code class="language-python">from jiwer import cer, wer
+
+
+def normalize(text):
+    text = re.sub(r&quot;[^\w\s]&quot;, &quot; &quot;, text.lower())
+    return re.sub(r&quot;\s+&quot;, &quot; &quot;, text).strip()
+
+refs = [normalize(t) for t in reference_texts]
+hyps = [normalize(t) for t in extracted_texts]
+print(f&quot;CER {cer(refs, hyps):.0%}  WER {wer(refs, hyps):.0%}&quot;)
+</code></pre>
+<p>Skip pages whose reference has fewer than five words. On a sound-effect-only page, one wrong word in a two-word reference is already a 50% WER, and extra predicted dialogue can push it far past 100%.</p>
+<p>Know where your reference came from. Mine was the output of an older OCR pipeline built on PaddleOCR and EasyOCR, not a human transcript, so the test drops pages that look garbled and uses generous limits: 60% WER and 40% CER. Those limits catch catastrophic failures. They don't certify accuracy.</p>
+<h2>Step 6: Report BLEU, but don't gate on it</h2>
+<p>For translation, compare the model's English with an existing English release using <code>sacrebleu</code>:</p>
+<pre><code class="language-python">from sacrebleu.metrics import BLEU
+
+bleu = BLEU(effective_order=True)
+print(bleu.corpus_score(hypotheses, [references]).score)
+</code></pre>
+<p>Treat BLEU as a relative number across pipeline versions, not as a quality grade. On two full chapters it stayed below 2. Alignment is part of the reason: one English release stitched about six Korean pages into each page, so the reporter groups the longer side into chunks before pairing. My BLEU test never fails on the score.</p>
+<h2>Step 7: Count tokens and keep one price table</h2>
+<p>Each response carries a <code>usage</code> object with prompt and completion token counts. Add them up per model, and multiply by a per-million-token price:</p>
+<pre><code class="language-python">import base64
+import os
+from openai import OpenAI
+
+with open(&quot;page_001.jpg&quot;, &quot;rb&quot;) as f:
+    b64 = base64.b64encode(f.read()).decode()
+messages = [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: [
+    {&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: &quot;List every text region on this page as JSON.&quot;},
+    {&quot;type&quot;: &quot;image_url&quot;, &quot;image_url&quot;: {&quot;url&quot;: f&quot;data:image/jpeg;base64,{b64}&quot;}},
+]}]
+client = OpenAI(base_url=&quot;https://openrouter.ai/api/v1&quot;,
+                api_key=os.environ[&quot;OPENROUTER_API_KEY&quot;])
+response = client.chat.completions.create(
+    model=&quot;google/gemini-3.1-flash-lite&quot;, messages=messages, max_tokens=16384)
+usage = response.usage
+price = {&quot;input&quot;: 0.10, &quot;output&quot;: 0.40}  # USD per 1M tokens, from your one table
+cost = (usage.prompt_tokens * price[&quot;input&quot;]
+        + usage.completion_tokens * price[&quot;output&quot;]) / 1_000_000
+</code></pre>
+<p>Keeping the prices right was harder than the arithmetic. My repository ended up with three price tables that disagreed:</p>
+<ul>
+<li>The benchmark and cost-tracker tables listed <code>gemini-3.5-flash</code> at $0.075 input and $0.30 output per million tokens.</li>
+<li>The OpenRouter table in <code>config.py</code>, updated on May 26, 2026, listed it at $1.50 and $9.00, with a comment that it was the real cost driver.</li>
+<li>For <code>gemini-3.1-flash-lite</code>, the cost tracker said $0.020 and $0.08, and <code>config.py</code> said $0.10 and $0.40.</li>
+</ul>
+<p>The chapter cost reports came from the cost-tracker table, so they used the lower prices. Keep one table, import it everywhere, and check it against your provider's billing.</p>
+<p>Set <code>max_tokens</code> with reasoning models in mind. Some Gemini models spend about 3,000 to 4,000 tokens on reasoning, and those count against <code>max_tokens</code>. At 4,096, responses stopped mid-JSON, and a truncated array parses to zero entries, which looks like a model that found no text.</p>
+<h2>Step 8: Count failures as failures</h2>
+<p>The first design called Gemini directly and, on a <code>429</code> response, retried the page through OpenRouter. In the current code, every call goes through OpenRouter, and a <code>429</code> triggers up to four attempts, with waits of 10, 20, 40, and 80 seconds. If all four fail, <code>extract_page()</code> returns a page whose raw response starts with <code>ERROR:</code> instead of raising an exception.</p>
+<p>My benchmark loop counts an error only when an exception is raised, so a rate-limited page scored as a page without dialogue. Split failures out explicitly:</p>
+<pre><code class="language-python">from manhwa_ocr.cbz_reader import read_source
+from manhwa_ocr.gemini_extractor import GeminiExtractor
+
+extractor = GeminiExtractor(&quot;gemini-3.1-flash-lite&quot;)
+ok_pages, failed_pages = [], []
+for page_num, filename, img in read_source(&quot;chapter_01.cbz&quot;):
+    page = extractor.extract_page(img, page_num, filename)
+    if page.raw_gemini_response.startswith(&quot;ERROR:&quot;):
+        failed_pages.append(page_num)
+    else:
+        ok_pages.append(page)
+</code></pre>
+<h2>Summary</h2>
+<p>Convert boxes to page pixels before scoring, score only what the ground truth annotates, know where your text reference came from, keep one price table, and count failed calls separately from empty pages.</p>
+<p>The ranking settled one decision for me: <code>gemini-3.1-flash-lite</code> stays the default model for extraction, and <code>gemini-3.5-flash</code>, at 15 times the input price and 22.5 times the output price in <code>config.py</code>, is the one to use when the boxes matter.</p>
+</main></body></html>
